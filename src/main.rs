@@ -8,8 +8,8 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use error::AppError;
 use config::Config;
+use error::AppError;
 use models::{AdjustQuantity, Adjustment, Item, ListQuery, MoveItem, Movement, NewItem};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
@@ -24,13 +24,18 @@ struct AppState {
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env()
-            .add_directive("warehouse_tracker=info".parse().unwrap()))
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::from_default_env()
+                .add_directive("warehouse_tracker=info".parse().unwrap()),
+        )
         .init();
 
     let cfg = Config::from_env()?;
 
-    let pool = PgPoolOptions::new().max_connections(5).connect(&cfg.database_url).await?;
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&cfg.database_url)
+        .await?;
     sqlx::migrate!("./migrations").run(&pool).await?;
 
     // The scanner feed runs alongside the API on the same pool.
@@ -80,7 +85,9 @@ async fn adjust(
     Path(id): Path<Uuid>,
     Json(body): Json<AdjustQuantity>,
 ) -> Result<Json<Item>, AppError> {
-    Ok(Json(repo::adjust_quantity(&s.pool, id, body.delta, &body.reason).await?))
+    Ok(Json(
+        repo::adjust_quantity(&s.pool, id, body.delta, &body.reason).await?,
+    ))
 }
 
 async fn adjustments(
@@ -94,7 +101,10 @@ async fn show(State(s): State<AppState>, Path(id): Path<Uuid>) -> Result<Json<It
     Ok(Json(repo::get_item(&s.pool, id).await?))
 }
 
-async fn create(State(s): State<AppState>, Json(body): Json<NewItem>) -> Result<Json<Item>, AppError> {
+async fn create(
+    State(s): State<AppState>,
+    Json(body): Json<NewItem>,
+) -> Result<Json<Item>, AppError> {
     Ok(Json(repo::create_item(&s.pool, body).await?))
 }
 
@@ -103,9 +113,14 @@ async fn move_to(
     Path(id): Path<Uuid>,
     Json(body): Json<MoveItem>,
 ) -> Result<Json<Item>, AppError> {
-    Ok(Json(repo::move_item(&s.pool, id, &body.to_location, "api").await?))
+    Ok(Json(
+        repo::move_item(&s.pool, id, &body.to_location, "api").await?,
+    ))
 }
 
-async fn movements(State(s): State<AppState>, Path(id): Path<Uuid>) -> Result<Json<Vec<Movement>>, AppError> {
+async fn movements(
+    State(s): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Vec<Movement>>, AppError> {
     Ok(Json(repo::item_movements(&s.pool, id).await?))
 }

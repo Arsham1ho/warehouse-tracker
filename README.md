@@ -29,12 +29,15 @@ cargo run                   # migrations run on startup
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/health` | liveness |
-| `GET` | `/items` | list items |
+| `GET` | `/health` | readiness — also checks the database |
+| `GET` | `/items` | list items; `?location=A-01&limit=50&offset=0` |
 | `POST` | `/items` | create an item |
 | `GET` | `/items/:id` | fetch one item |
+| `DELETE` | `/items/:id` | delete an item and its history |
 | `POST` | `/items/:id/move` | move an item, body `{"to_location":"B-07"}` |
-| `GET` | `/items/:id/movements` | audit trail for an item |
+| `GET` | `/items/:id/movements` | movement history |
+| `POST` | `/items/:id/adjust` | change stock, body `{"delta":-3,"reason":"damaged"}` |
+| `GET` | `/items/:id/adjustments` | stock-change history |
 
 ```sh
 curl -X POST localhost:3000/items \
@@ -70,7 +73,17 @@ CHECK constraint, so the invariants hold regardless of which path writes the row
 — API, scanner, or a future importer.
 
 **Postgres errors map to the right status codes.** A `23505` unique violation
-returns `409 Conflict` rather than a generic `500`.
+returns `409 Conflict` rather than a generic `500`, and an adjustment that would
+take stock below zero returns `422` — caught in the handler so the caller gets a
+clear reason instead of a constraint error surfacing as a `500`.
+
+**Quantity changes are audited like moves.** Adjustments append to their own
+table with a reason and the resulting quantity, under the same row lock, so two
+concurrent adjustments cannot both read the same starting quantity and lose one
+of the writes.
+
+**Configuration is validated at startup.** A missing or malformed variable fails
+immediately with a clear message rather than surfacing on the first request.
 
 ## Tests
 
@@ -78,6 +91,9 @@ returns `409 Conflict` rather than a generic `500`.
 docker compose up -d db
 cargo test
 ```
+
+CI runs `cargo fmt --check`, `cargo clippy -D warnings` and the full test suite
+against a real Postgres service container on every push.
 
 Integration tests run against a real Postgres instance, because what is worth
 testing here — the move-and-record transaction and the database constraints — is

@@ -21,11 +21,18 @@ impl IntoResponse for AppError {
                 // A unique-violation from Postgres is a client error, not a 500.
                 if let sqlx::Error::Database(db) = e {
                     if db.code().as_deref() == Some("23505") {
-                        return (StatusCode::CONFLICT, Json(serde_json::json!({"error":"sku already exists"}))).into_response();
+                        return (
+                            StatusCode::CONFLICT,
+                            Json(serde_json::json!({"error":"sku already exists"})),
+                        )
+                            .into_response();
                     }
                 }
                 tracing::error!(error = %e, "database error");
-                (StatusCode::INTERNAL_SERVER_ERROR, "internal error".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "internal error".to_string(),
+                )
             }
         };
         (status, Json(serde_json::json!({ "error": msg }))).into_response()

@@ -26,8 +26,12 @@ pub async fn run(pool: PgPool, host: String, port: u16, topic: String) {
                 let payload = String::from_utf8_lossy(&p.payload).to_string();
                 match serde_json::from_str::<ScanEvent>(&payload) {
                     Ok(scan) => {
-                        match repo::move_item_by_sku(&pool, &scan.sku, &scan.location, "scanner").await {
-                            Ok(item) => tracing::info!(sku = %item.sku, location = %item.location, "scan applied"),
+                        match repo::move_item_by_sku(&pool, &scan.sku, &scan.location, "scanner")
+                            .await
+                        {
+                            Ok(item) => {
+                                tracing::info!(sku = %item.sku, location = %item.location, "scan applied")
+                            }
                             Err(e) => tracing::warn!(sku = %scan.sku, error = %e, "scan ignored"),
                         }
                     }
