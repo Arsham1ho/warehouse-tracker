@@ -6,6 +6,8 @@ use axum::Json;
 pub enum AppError {
     #[error("item not found")]
     NotFound,
+    #[error("adjustment would make quantity negative")]
+    InsufficientStock,
     #[error(transparent)]
     Db(#[from] sqlx::Error),
 }
@@ -14,6 +16,7 @@ impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, msg) = match &self {
             AppError::NotFound => (StatusCode::NOT_FOUND, self.to_string()),
+            AppError::InsufficientStock => (StatusCode::UNPROCESSABLE_ENTITY, self.to_string()),
             AppError::Db(e) => {
                 // A unique-violation from Postgres is a client error, not a 500.
                 if let sqlx::Error::Database(db) = e {
