@@ -1,0 +1,47 @@
+# Mirror of the GitHub Actions pipeline, for GitLab CI.
+stages: [check, test, gate]
+
+variables:
+  DATABASE_URL: "postgres://warehouse:warehouse@postgres:5432/warehouse"
+  CARGO_HOME: "$CI_PROJECT_DIR/.cargo"
+
+cache:
+  paths: [.cargo/, target/]
+
+fmt:
+  stage: check
+  image: rust:latest
+  script:
+    - rustup component add rustfmt
+    - cargo fmt --check
+
+clippy:
+  stage: check
+  image: rust:latest
+  script:
+    - rustup component add clippy
+    - cargo clippy --all-targets -- -D warnings
+
+test:
+  stage: test
+  image: rust:latest
+  services:
+    - name: postgres:16
+      alias: postgres
+  variables:
+    POSTGRES_USER: warehouse
+    POSTGRES_PASSWORD: warehouse
+    POSTGRES_DB: warehouse
+  script:
+    - cargo test --all
+
+ai-review-gate:
+  stage: gate
+  image: python:3.12-slim
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git
+  script:
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - python3 tools/ai_review_gate.py "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" "$CI_COMMIT_SHA"

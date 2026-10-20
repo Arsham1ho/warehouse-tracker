@@ -1,0 +1,17 @@
+name: AI review gate
+
+on:
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check AI-assisted commits are reviewed and recorded
+        run: python3 tools/ai_review_gate.py origin/${{ github.base_ref }} ${{ github.sha }}

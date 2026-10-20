@@ -93,7 +93,26 @@ cargo test
 ```
 
 CI runs `cargo fmt --check`, `cargo clippy -D warnings` and the full test suite
-against a real Postgres service container on every push.
+against a real Postgres service container on every push. The same pipeline is
+mirrored in `.gitlab-ci.yml` for GitLab CI.
+
+## AI review gate
+
+AI assistants are useful and also wrong in ways ordinary tools are not: they
+can read as confident while being wrong, answer the same question differently
+twice, and lose detail in a long file. So using one is fine; letting its output
+reach `main` unchecked is not.
+
+`tools/ai_review_gate.py` enforces three rules on every pull request:
+
+1. **Declare it** — a commit written with AI assistance carries `AI-Assisted: <tool>`
+2. **Review it** — that commit must also carry `Reviewed-by: <name>`
+3. **Record it** — the approved change is appended to `docs/ai-assistance-log.md`
+
+A declared commit without a reviewer, or with a reviewer but no log entry, fails
+the build. The point is not to discourage the tooling; it is that a human took
+responsibility for the output, and that the fact stays auditable after the pull
+request is closed.
 
 Integration tests run against a real Postgres instance, because what is worth
 testing here — the move-and-record transaction and the database constraints — is
